@@ -126,3 +126,42 @@
 (define-private (is-valid-expiration (expiration uint))
   (> expiration (+ stacks-block-height MIN-EXPIRATION-BLOCKS))
 )
+
+;; Ensures metadata doesn't exceed storage limits
+(define-private (is-valid-metadata-length (metadata (string-utf8 256)))
+  (<= (len metadata) MAX-METADATA-LENGTH)
+)
+
+;; Validates cryptographic hash integrity
+(define-private (is-valid-hash (hash (buff 32)))
+  (not (is-eq hash 0x0000000000000000000000000000000000000000000000000000000000000000))
+)
+
+;; ADMINISTRATIVE FUNCTIONS
+
+;; Emergency pause mechanism - can be triggered by admin or guardian
+(define-public (pause-contract)
+  (let ((sender tx-sender))
+    (asserts! (or 
+      (is-eq sender (var-get admin))
+      (is-eq (some sender) (var-get pause-guardian))
+    ) ERR-NOT-AUTHORIZED)
+    (ok (var-set contract-paused true))
+  )
+)
+
+;; Unpause contract - only admin can unpause
+(define-public (unpause-contract)
+  (begin
+    (asserts! (is-eq tx-sender (var-get admin)) ERR-NOT-AUTHORIZED)
+    (ok (var-set contract-paused false))
+  )
+)
+
+;; Set pause guardian - separate from admin for security
+(define-public (set-pause-guardian (new-guardian (optional principal)))
+  (begin
+    (asserts! (is-eq tx-sender (var-get admin)) ERR-NOT-AUTHORIZED)
+    (ok (var-set pause-guardian new-guardian))
+  )
+)
