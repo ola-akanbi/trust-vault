@@ -374,3 +374,43 @@
     ))
   )
 )
+
+;; READ-ONLY QUERY FUNCTIONS
+
+;; Retrieves identity information for a given principal
+(define-read-only (get-identity (identity principal))
+  (map-get? identities identity)
+)
+
+;; Retrieves credential information by issuer and nonce
+(define-read-only (get-credential
+    (issuer principal)
+    (nonce uint)
+  )
+  (map-get? credentials {
+    issuer: issuer,
+    nonce: nonce,
+  })
+)
+
+;; Verifies if a credential is valid (not revoked and not expired)
+(define-read-only (verify-credential
+    (issuer principal)
+    (nonce uint)
+  )
+  (let ((credential (map-get? credentials {
+      issuer: issuer,
+      nonce: nonce,
+    })))
+    (asserts! (is-some credential) ERR-INVALID-CREDENTIAL)
+    (ok (and
+      (not (get revoked (unwrap-panic credential)))
+      (< stacks-block-height (get expiration (unwrap-panic credential)))
+    ))
+  )
+)
+
+;; Retrieves zero-knowledge proof information
+(define-read-only (get-proof (proof-hash (buff 32)))
+  (map-get? zero-knowledge-proofs proof-hash)
+)
