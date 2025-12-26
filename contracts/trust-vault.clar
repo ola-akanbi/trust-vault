@@ -86,3 +86,43 @@
     proof-data: (buff 1024),
   }
 )
+
+;; STATE VARIABLES
+
+(define-data-var admin principal tx-sender)
+(define-data-var credential-nonce uint u0)
+(define-data-var contract-paused bool false)
+(define-data-var pause-guardian (optional principal) none)
+
+;; VALIDATION FUNCTIONS
+
+;; Checks if contract is currently paused
+(define-private (is-paused)
+  (var-get contract-paused)
+)
+
+;; Validates recovery address to prevent security vulnerabilities
+(define-private (is-valid-recovery-address (recovery-addr (optional principal)))
+  (match recovery-addr
+    recovery-principal (and
+      (not (is-eq recovery-principal tx-sender))
+      (not (is-eq recovery-principal (var-get admin)))
+    )
+    true
+  )
+)
+
+;; Ensures proof data meets minimum security requirements
+(define-private (is-valid-proof-data (proof-data (buff 1024)))
+  (let ((proof-len (len proof-data)))
+    (and
+      (>= proof-len MINIMUM-PROOF-SIZE)
+      (not (is-eq proof-data 0x))
+    )
+  )
+)
+
+;; Validates credential expiration times
+(define-private (is-valid-expiration (expiration uint))
+  (> expiration (+ stacks-block-height MIN-EXPIRATION-BLOCKS))
+)
