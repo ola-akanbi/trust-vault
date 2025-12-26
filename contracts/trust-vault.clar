@@ -246,3 +246,41 @@
     ))
   )
 )
+
+;; CREDENTIAL MANAGEMENT SYSTEM
+
+;; Issues a verifiable credential to a registered identity
+(define-public (issue-credential
+    (subject principal)
+    (claim-hash (buff 32))
+    (expiration uint)
+    (metadata (string-utf8 256))
+  )
+  (let (
+      (sender tx-sender)
+      (current-nonce (var-get credential-nonce))
+      (credential-id {
+        issuer: sender,
+        nonce: current-nonce,
+      })
+      (issuer-identity (map-get? identities sender))
+      (subject-identity (map-get? identities subject))
+    )
+    (asserts! (not (is-paused)) ERR-CONTRACT-PAUSED)
+    (asserts! (is-some issuer-identity) ERR-NOT-REGISTERED)
+    (asserts! (is-some subject-identity) ERR-NOT-REGISTERED)
+    (asserts! (is-valid-hash claim-hash) ERR-INVALID-INPUT)
+    (asserts! (is-valid-expiration expiration) ERR-INVALID-EXPIRATION)
+    (asserts! (is-valid-metadata-length metadata) ERR-INVALID-INPUT)
+    (var-set credential-nonce (+ current-nonce u1))
+    (ok (map-set credentials credential-id {
+      subject: subject,
+      claim-hash: claim-hash,
+      expiration: expiration,
+      expiration-time: (+ stacks-block-time (* (- expiration stacks-block-height) u600)),  ;; Clarity 4: Convert to Unix timestamp (~10min blocks)
+      revoked: false,
+      issued-at: stacks-block-time,  ;; Clarity 4: Track issuance timestamp
+      metadata: metadata,
+    }))
+  )
+)
