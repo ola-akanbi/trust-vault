@@ -414,3 +414,52 @@
 (define-read-only (get-proof (proof-hash (buff 32)))
   (map-get? zero-knowledge-proofs proof-hash)
 )
+
+;; CLARITY 4 ENHANCED READ-ONLY FUNCTIONS
+
+;; Returns identity status as ASCII string (Clarity 4: to-ascii?)
+(define-read-only (get-identity-status-string (identity principal))
+  (let ((identity-data (map-get? identities identity)))
+    (if (is-some identity-data)
+      (ok (get status (unwrap-panic identity-data)))
+      ERR-NOT-REGISTERED
+    )
+  )
+)
+
+;; Returns credential validity with timestamp info (Clarity 4: stacks-block-time)
+(define-read-only (get-credential-time-info
+    (issuer principal)
+    (nonce uint)
+  )
+  (let ((credential (map-get? credentials {
+      issuer: issuer,
+      nonce: nonce,
+    })))
+    (if (is-some credential)
+      (ok {
+        issued-at: (get issued-at (unwrap-panic credential)),
+        expiration-time: (get expiration-time (unwrap-panic credential)),
+        current-time: stacks-block-time,
+        is-expired: (>= stacks-block-time (get expiration-time (unwrap-panic credential))),
+      })
+      ERR-INVALID-CREDENTIAL
+    )
+  )
+)
+
+;; Check if credential is expired based on Unix timestamp (Clarity 4: stacks-block-time)
+(define-read-only (is-credential-expired
+    (issuer principal)
+    (nonce uint)
+  )
+  (let ((credential (map-get? credentials {
+      issuer: issuer,
+      nonce: nonce,
+    })))
+    (if (is-some credential)
+      (ok (>= stacks-block-time (get expiration-time (unwrap-panic credential))))
+      ERR-INVALID-CREDENTIAL
+    )
+  )
+)
