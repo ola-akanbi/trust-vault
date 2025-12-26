@@ -284,3 +284,51 @@
     }))
   )
 )
+
+;; Revokes a previously issued credential
+(define-public (revoke-credential
+    (issuer principal)
+    (nonce uint)
+  )
+  (let (
+      (sender tx-sender)
+      (credential-id {
+        issuer: issuer,
+        nonce: nonce,
+      })
+      (credential (map-get? credentials credential-id))
+    )
+    (asserts! (not (is-paused)) ERR-CONTRACT-PAUSED)
+    (asserts! (is-some credential) ERR-INVALID-CREDENTIAL)
+    (asserts! (is-eq sender issuer) ERR-NOT-AUTHORIZED)
+    (ok (map-set credentials credential-id
+      (merge (unwrap-panic credential) { revoked: true })
+    ))
+  )
+)
+
+;; REPUTATION MANAGEMENT
+
+;; Updates the reputation score for a registered identity
+(define-public (update-reputation
+    (subject principal)
+    (score-change int)
+  )
+  (let (
+      (sender tx-sender)
+      (identity (map-get? identities subject))
+      (current-score (get reputation-score (unwrap-panic identity)))
+      (score-change-abs (if (< score-change 0)
+        (* score-change -1)
+        score-change
+      ))
+    )
+    (asserts! (is-eq sender (var-get admin)) ERR-NOT-AUTHORIZED)
+    (asserts! (is-some identity) ERR-NOT-REGISTERED)
+    (asserts!
+      (or
+        (> score-change 0)
+        (>= (to-int current-score) score-change-abs)
+      )
+      ERR-INVALID-SCORE
+    )
