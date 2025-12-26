@@ -332,3 +332,45 @@
       )
       ERR-INVALID-SCORE
     )
+
+    (ok (map-set identities subject
+      (merge (unwrap-panic identity) { reputation-score: (if (> score-change 0)
+        (+ current-score (to-uint score-change))
+        (to-uint (- (to-int current-score) score-change-abs))
+      ) }
+      )))
+  )
+)
+
+;; IDENTITY RECOVERY MECHANISMS
+
+;; Initiates identity recovery using designated recovery address
+(define-public (initiate-recovery
+    (identity principal)
+    (new-hash (buff 32))
+  )
+  (let (
+      (sender tx-sender)
+      (identity-data (map-get? identities identity))
+    )
+    (asserts! (not (is-paused)) ERR-CONTRACT-PAUSED)
+    (asserts! (is-some identity-data) ERR-NOT-REGISTERED)
+    (asserts! (is-some (get recovery-address (unwrap-panic identity-data)))
+      ERR-NOT-AUTHORIZED
+    )
+    (asserts!
+      (is-eq sender
+        (unwrap-panic (get recovery-address (unwrap-panic identity-data)))
+      )
+      ERR-NOT-AUTHORIZED
+    )
+    (ok (map-set identities identity
+      (merge (unwrap-panic identity-data) {
+        hash: new-hash,
+        last-updated: stacks-block-height,
+        last-updated-time: stacks-block-time,  ;; Clarity 4: Update Unix timestamp
+        status: "RECOVERED",
+      })
+    ))
+  )
+)
