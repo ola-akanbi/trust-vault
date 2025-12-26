@@ -165,3 +165,42 @@
     (ok (var-set pause-guardian new-guardian))
   )
 )
+
+;; Transfers administrative privileges to a new principal
+(define-public (set-admin (new-admin principal))
+  (begin
+    (asserts! (is-eq tx-sender (var-get admin)) ERR-NOT-AUTHORIZED)
+    (asserts! (not (is-eq new-admin tx-sender)) ERR-INVALID-INPUT)
+    (ok (var-set admin new-admin))
+  )
+)
+
+;; IDENTITY MANAGEMENT
+
+;; Registers a new self-sovereign identity with optional recovery mechanism
+(define-public (register-identity
+    (identity-hash (buff 32))
+    (recovery-addr (optional principal))
+  )
+  (let (
+      (sender tx-sender)
+      (existing-identity (map-get? identities sender))
+    )
+    (asserts! (not (is-paused)) ERR-CONTRACT-PAUSED)
+    (asserts! (is-none existing-identity) ERR-ALREADY-REGISTERED)
+    (asserts! (is-valid-hash identity-hash) ERR-INVALID-INPUT)
+    (asserts! (is-valid-recovery-address recovery-addr)
+      ERR-INVALID-RECOVERY-ADDRESS
+    )
+
+    (ok (map-set identities sender {
+      hash: identity-hash,
+      credentials: (list),
+      reputation-score: u100,
+      recovery-address: recovery-addr,
+      last-updated: stacks-block-height,
+      last-updated-time: stacks-block-time,  ;; Clarity 4: Store Unix timestamp
+      status: "ACTIVE",
+    }))
+  )
+)
