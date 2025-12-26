@@ -41,3 +41,48 @@
 (define-constant MIN-EXPIRATION-BLOCKS u1)
 (define-constant MAX-METADATA-LENGTH u256)
 (define-constant MINIMUM-PROOF-SIZE u64)
+
+;; DATA STRUCTURES
+
+;; Identity Registry: Maps principals to their identity metadata
+(define-map identities
+  principal
+  {
+    hash: (buff 32),
+    credentials: (list 10 principal),
+    reputation-score: uint,
+    recovery-address: (optional principal),
+    last-updated: uint,
+    last-updated-time: uint,  ;; Clarity 4: Unix timestamp from stacks-block-time
+    status: (string-ascii 20),
+  }
+)
+
+;; Credential Registry: Stores verifiable credentials with issuer-nonce composite key
+(define-map credentials
+  {
+    issuer: principal,
+    nonce: uint,
+  }
+  {
+    subject: principal,
+    claim-hash: (buff 32),
+    expiration: uint,
+    expiration-time: uint,  ;; Clarity 4: Unix timestamp expiration
+    revoked: bool,
+    issued-at: uint,  ;; Clarity 4: Unix timestamp of issuance
+    metadata: (string-utf8 256),
+  }
+)
+
+;; Zero-Knowledge Proof Storage: Manages cryptographic proofs and verification status
+(define-map zero-knowledge-proofs
+  (buff 32)
+  {
+    prover: principal,
+    verified: bool,
+    timestamp: uint,
+    timestamp-unix: uint,  ;; Clarity 4: Unix timestamp from stacks-block-time
+    proof-data: (buff 1024),
+  }
+)
