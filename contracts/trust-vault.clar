@@ -204,3 +204,45 @@
     }))
   )
 )
+
+;; ZERO-KNOWLEDGE PROOF SYSTEM
+
+;; Submits a cryptographic proof for verification
+(define-public (submit-proof
+    (proof-hash (buff 32))
+    (proof-data (buff 1024))
+  )
+  (let (
+      (sender tx-sender)
+      (existing-identity (map-get? identities sender))
+      (existing-proof (map-get? zero-knowledge-proofs proof-hash))
+    )
+    (asserts! (not (is-paused)) ERR-CONTRACT-PAUSED)
+    (asserts! (is-some existing-identity) ERR-NOT-REGISTERED)
+    (asserts! (is-valid-hash proof-hash) ERR-INVALID-INPUT)
+    (asserts! (is-valid-proof-data proof-data) ERR-INVALID-PROOF-DATA)
+    (asserts! (is-none existing-proof) ERR-INVALID-PROOF)
+
+    (ok (map-set zero-knowledge-proofs proof-hash {
+      prover: sender,
+      verified: false,
+      timestamp: stacks-block-height,
+      timestamp-unix: stacks-block-time,  ;; Clarity 4: Store Unix timestamp
+      proof-data: proof-data,
+    }))
+  )
+)
+
+;; Administratively verifies a submitted zero-knowledge proof
+(define-public (verify-proof (proof-hash (buff 32)))
+  (let (
+      (proof (map-get? zero-knowledge-proofs proof-hash))
+      (sender tx-sender)
+    )
+    (asserts! (is-some proof) ERR-INVALID-PROOF)
+    (asserts! (is-eq sender (var-get admin)) ERR-NOT-AUTHORIZED)
+    (ok (map-set zero-knowledge-proofs proof-hash
+      (merge (unwrap-panic proof) { verified: true })
+    ))
+  )
+)
